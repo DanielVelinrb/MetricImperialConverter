@@ -1,89 +1,31 @@
-function ConvertHandler() {
-  this.getNum = function (input) {
+"use strict";
 
-    if (!/[^\d\.\/ ]/i.test(input)) return Number(input);
+const expect = require("chai").expect;
+const ConvertHandler = require("../controllers/convertHandler.js");
 
-    const idx = input.match(/[^\d\.\/ ]/i)["index"];
-    if (idx === 0) return 1;
-    if (input.match(/\//g) && input.match(/\//g).length > 1) return { error: "Invalid number" };
-      return eval(input.substr(0, idx));
-  };
+module.exports = function (app) {
+  let convertHandler = new ConvertHandler();
 
-  this.getUnit = function (input) {
-    if (!/[^\d\.\/ ]+/i.test(input)) return { error: "Invalid input unit" };
-    const units = {
-      gal: "gal",
-      lbs: "lbs",
-      mi: "mi",
-      l: "L",
-      kg: "kg",
-      km: "km",
-    };
+  app.route("/api/convert").get((req, res) => {
+    let { input } = req.query;
 
-    const idx = input.match(/[^\d\.\/ ]+/i)["index"];
-    const unit = input.substr(idx).toLowerCase();
+    if (input) {
+      let num = convertHandler.getNum(input);
+      let unit = convertHandler.getUnit(input);
 
-    if (!units[unit]) return { error: "Invalid input unit" };
+      if (num === "invalid number" && unit === "invalid unit")
+        return res.json("invalid number and unit");
+      if (num === "invalid number" && unit !== "invalid unit")
+        return res.json("invalid number");
+      if (num !== "invalid number" && unit === "invalid unit")
+        return res.json("invalid unit");
 
-    return units[unit];
-  };
+      let returnNum = convertHandler.convert(num, unit);
+      let returnUnit = convertHandler.getReturnUnit(unit);
 
-  this.getReturnUnit = function (initUnit) {
-    initUnit = initUnit.toLowerCase();
-    return {
-      gal: "L",
-      lbs: "kg",
-      mi: "km",
-      l: "gal",
-      kg: "lbs",
-      km: "mi",
-    }[initUnit];
-  };
-
-  this.spellOutUnit = function (unit) {
-    return {
-      gal: "gallon",
-      lbs: "pound",
-      mi: "mile",
-      l: "litre",
-      kg: "kilogram",
-      km: "kilometer",
-    }[unit];
-  };
-
-  this.convert = function (initNum, initUnit) {
-    initUnit = initUnit.toLowerCase();
-    const galToL = 3.78541;
-    const lbsToKg = 0.453592;
-    const miToKm = 1.60934;
-    switch (initUnit) {
-      case "gal":
-        result = initNum * galToL;
-        break;
-      case "lbs":
-        result = initNum * lbsToKg;
-        break;
-      case "mi":
-        result = initNum * miToKm;
-        break;
-      case "l":
-        result = initNum / galToL;
-        break;
-      case "kg":
-        result = initNum / lbsToKg;
-        break;
-      case "km":
-        result = initNum / miToKm;
-        break;
+      return res.json(
+        convertHandler.getString(num, unit, returnNum, returnUnit)
+      );
     }
-    return Number(result.toFixed(5));
-  };
-
-  this.getString = function (initNum, initUnit, returnNum, returnUnit) {
-    const spInitUnit = this.spellOutUnit(initUnit) + (initNum > 1 ? "s" : "");
-    const spReturnUnit = this.spellOutUnit(returnUnit) + (returnNum > 1 ? "s" : "");
-    return `${initNum} ${spInitUnit} converts to ${returnNum} ${spReturnUnit}`;
-  };
-}
-
-module.exports = ConvertHandler;
+  });
+};
